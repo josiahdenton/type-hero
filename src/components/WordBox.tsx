@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import Cursor, { Point } from './Cursor';
-import Letter, { LetterState } from './Letter';
 import { CursorAction, CursorPosition, useSlide } from '../hooks/slide';
 import Line from './Line';
 import { useScore } from '../hooks/scoring';
@@ -45,9 +44,8 @@ const translateCursorToLocation = (
 
 const SECOND = 1000;
 const PLAY_TIME = 30;
-const MAX_WORDS_PER_SECTION = 10; // TODO: make this max letters per line!
 
-const WordBox: React.FC<WordBoxProps> = ({ active, className }) => {
+const WordBox: React.FC<WordBoxProps> = ({ className }) => {
     const [gameState, setGameState] = useState<GameState>();
     const [cursorPos, lines, moveCursor, setWords] = useSlide();
     const cursorPosRef = useRef(cursorPos);
