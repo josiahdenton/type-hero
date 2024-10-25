@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import Cursor, { CursorPosition } from './Cursor';
+import Cursor, { Point } from './Cursor';
 import Letter, { LetterState } from './Letter';
+import { CursorAction, CursorPosition, useSlide } from '../hooks/slide';
+import Line from './Line';
+import { useScore } from '../hooks/scoring';
 
 interface WordBoxProps {
     content: string;
@@ -8,17 +11,27 @@ interface WordBoxProps {
     className?: string;
 }
 
-type GameStats = {
-    correct: number;
-    incorrect: number;
+enum GameState {
+    READY = 0,
+    STARTED = 1,
+    ENDED = 2,
+}
+
+const totalCorrect = (scores: (boolean | undefined)[][]): number => {
+    return scores.reduce((prev, curr) => {
+        return (
+            prev +
+            curr.reduce((prev, curr) => (curr === true ? prev + 1 : prev), 0)
+        );
+    }, 0);
 };
 
-const getRandom = (): number => {
-    return Math.floor(Math.random() * 1000);
-};
-
-const getLetterPosition = (position: number): CursorPosition | undefined => {
-    let letter = document.getElementById('letter-' + position);
+const translateCursorToLocation = (
+    cursor: CursorPosition
+): Point | undefined => {
+    let letter = document.getElementById(
+        `line-${cursor.line}-letter-${cursor.letter}`
+    );
     let rect = letter?.getBoundingClientRect();
     if (rect) {
         return {
@@ -32,173 +45,122 @@ const getLetterPosition = (position: number): CursorPosition | undefined => {
 
 const SECOND = 1000;
 const PLAY_TIME = 30;
-const MAX_WORDS_PER_SECTION = 10;
+const MAX_WORDS_PER_SECTION = 10; // TODO: make this max letters per line!
 
 const WordBox: React.FC<WordBoxProps> = ({ active, className }) => {
-    const [cursorPos, setCursorPos] = useState<number>(0);
+    const [gameState, setGameState] = useState<GameState>();
+    const [cursorPos, lines, moveCursor, setWords] = useSlide();
+    const cursorPosRef = useRef(cursorPos);
+    const [cursorLocation, setCursorLocation] = useState<Point>({ x: 0, y: 0 });
+    const [scores, setLines, setKeyEvent] = useScore();
+    const scoresRef = useRef(scores);
+    const [wpm, setWPM] = useState<number>(0);
+    //const [timeRemaining, setTimeRemaining] = useState<number>(PLAY_TIME);
 
-    const [gameReady, setGameReady] = useState<boolean>(false);
-    const [gameStarted, setGameStarted] = useState<boolean>(false); // FIXME: move this to instead be a game state
-    const [gameCompleted, setGameCompleted] = useState<boolean>(false);
-    const [gameStats, setGameStats] = useState<GameStats>({
-        correct: 0,
-        incorrect: 0,
-    });
+    useEffect(() => {
+        if (gameState === GameState.ENDED) {
+            // run through scores and find the tally, it should be
+            // (characters_typed_correctly / 30 sec * (60 sec / 1 min) / 5)
+            const correct = totalCorrect(scores);
+            setWPM(((correct / PLAY_TIME) * 60) / 5);
+        }
+    }, [gameState]);
 
-    const [completedWords, setCompletedWords] = useState<number>(0);
-    const [gameTime, setGameTime] = useState<number>(Date.now());
-    const [contentState, setContentState] = useState<Array<LetterState>>([]);
-    const [content, setContent] = useState<string>('');
-    const [nextSectionPos, setNextSectionPos] = useState<number>(getRandom());
+    useEffect(() => {
+        scoresRef.current = scores;
+        console.log(scores);
+    }, [scores]);
 
-    const [ticker, setTicker] = useState<number>(PLAY_TIME);
+    useEffect(() => {
+        cursorPosRef.current = cursorPos;
+    }, [cursorPos]);
 
-    const [cursorWindowPosition, setCursorWindowPosition] =
-        useState<CursorPosition>({ x: 0, y: 0 });
+    useEffect(() => {
+        setLines(lines);
+    }, [lines]);
 
-    const loadContent = (section: number) => {
+    useEffect(() => {
+        let location = translateCursorToLocation(cursorPos);
+        if (location) {
+            setCursorLocation(location);
+        }
+    }, [cursorPos, lines]);
+
+    const loadContent = () => {
         fetch('/thousand.json')
             .then((resp) => resp.json())
-            .then((words) => {
-                setContent(
-                    words.common
-                        .slice(section, section + MAX_WORDS_PER_SECTION)
-                        .join(' ')
-                );
-                setGameReady(true);
+            .then((words: { common: string[] }) => {
+                setWords(words.common);
+                setGameState(GameState.READY);
             })
             .catch((err) => console.error(err));
     };
 
-    const nextWordSection = () => {
-        setCursorPos(0);
-        setContentState([]);
-        loadContent(nextSectionPos);
-        setNextSectionPos(getRandom());
-    };
-
     useEffect(() => {
-        if (ticker == 0 || !gameStarted) {
-            return;
-        }
-        const timeout = setTimeout(() => {
-            setTicker(ticker - 1);
-        }, 1 * SECOND);
-        return () => clearTimeout(timeout);
-    }, [gameStarted, ticker]);
-
-    useEffect(() => {
-        loadContent(nextSectionPos);
-        setNextSectionPos(getRandom());
+        loadContent();
         window.addEventListener('keydown', handleUserInput);
-        const timeout = setTimeout(() => {
-            setGameCompleted(true);
-        }, 30 * SECOND);
         return () => {
-            clearTimeout(timeout);
             window.removeEventListener('keydown', handleUserInput);
         };
     }, []);
 
     useEffect(() => {
-        if (cursorPos == content.length && gameReady) {
-            nextWordSection();
+        if (gameState === GameState.STARTED) {
+            const timeout = setTimeout(() => {
+                setGameState(GameState.ENDED);
+            }, 30 * SECOND);
+            return () => {
+                clearTimeout(timeout);
+            };
         }
-    }, [cursorPos]);
+    }, [gameState]);
 
-    useEffect(() => {
-        setContentState(new Array(content.length).fill(LetterState.READY));
-    }, [content]);
-
-    useEffect(() => {
-        const pos = getLetterPosition(cursorPos);
-        if (pos) {
-            setCursorWindowPosition(pos);
-        }
-    }, [cursorPos, content]);
-
-    const contentRef = useRef(content);
-    const cursorPosRef = useRef(cursorPos);
-
-    useEffect(() => {
-        contentRef.current = content;
-    }, [content]);
-    useEffect(() => {
-        cursorPosRef.current = cursorPos;
-    }, [cursorPos]);
-
+    // FIXME: I should have moveCursor listened to...
     const handleUserInput = (event: KeyboardEvent) => {
-        setGameStarted(true);
-        console.log(event);
-        // ignore these
+        setGameState(GameState.STARTED);
         if (['Shift', 'Control', 'Meta'].includes(event.key)) {
             return;
         }
 
-        const content = contentRef.current;
-        const cursorPos = cursorPosRef.current;
-
-        if (event.key == content[cursorPos]) {
-            if (content[cursorPos] == ' ') {
-                // FIXME: I don't think this happens when we move to a new section
-                setCompletedWords((count) => count + 1);
-            }
-            // what I have written
-            setContentState((state) =>
-                state.map((prevLetterState, i) =>
-                    i == cursorPos ? LetterState.MATCHED : prevLetterState
-                )
+        if (event.key === 'Backspace') {
+            // this moves the cursor
+            moveCursor(
+                event.ctrlKey
+                    ? { action: CursorAction.SUPER_DELETE }
+                    : { action: CursorAction.DELETE }
             );
-
-            setCursorPos((pos) => pos + 1);
-        } else if (event.key == 'Backspace') {
-            if (event.altKey) {
-                // go back a word...
-                // this would require creating a WordStore,  getWordRange(index)
-                // underlying store is something like
-                // (x, y) --> Word
-                // stored in array, fast lookup with O(log n) search
-            } else {
-                // delete single
-                setContentState((state) =>
-                    state.map((prevLetterState, i) =>
-                        i == cursorPos - 1 ? LetterState.READY : prevLetterState
-                    )
-                );
-                setCursorPos((pos) => pos - 1);
-            }
         } else {
-            console.log('huh?', cursorPos, content);
-            setContentState((state) =>
-                state.map((prevLetterState, i) =>
-                    i == cursorPos ? LetterState.NO_MATCH : prevLetterState
-                )
-            );
-            setCursorPos((pos) => pos + 1);
+            // move cursor forward
+            moveCursor({ action: CursorAction.FORWARD });
+            setKeyEvent({
+                timestamp: Date.now(),
+                character: event.key,
+                pos: cursorPosRef.current,
+                isDelete: false,
+            });
         }
     };
 
     return (
         <div tabIndex={0} className={'max-w-4xl ' + className}>
             <Cursor
-                position={cursorWindowPosition}
-                waiting={!gameStarted}
+                point={cursorLocation}
+                waiting={gameState !== GameState.STARTED}
                 className={'h-7 absolute transition-left ease-linear'}
             />
-            {content.split('').map((character, i) => {
-                return (
-                    <Letter
-                        id={'letter-' + i}
-                        key={i}
-                        letter={character}
-                        state={contentState[i]}
-                    />
-                );
-            })}
+            {lines.slice(-3).map((line, i) => (
+                <Line
+                    key={i}
+                    line={line}
+                    linePos={i + lines.length - 3}
+                    lineScore={scores[i + lines.length - 3]}
+                ></Line>
+            ))}
+            <br />
+            <br />
+            <div className="text-slate-700"> Total Score: {wpm}</div>
         </div>
     );
-
-    //<div>{completedWords}</div>
 };
 
 export default WordBox;

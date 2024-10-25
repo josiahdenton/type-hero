@@ -20,7 +20,7 @@ function App() {
                 <div className="flex flex-col w-full">
                     <Keyboard
                         className="self-center"
-                        layout={Layout.COLEMAK_DH}
+                        layout={Layout.QWERTY}
                     />
                 </div>
             </div>

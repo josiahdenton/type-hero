@@ -1,15 +1,15 @@
 interface CursorProps {
     waiting: boolean;
     className?: string;
-    position: CursorPosition;
+    point: Point;
 }
 
-export type CursorPosition = {
+export type Point = {
     x: number;
     y: number;
 };
 
-const Cursor: React.FC<CursorProps> = ({ waiting, className, position }) => {
+const Cursor: React.FC<CursorProps> = ({ waiting, className, point: position }) => {
     return (
         <span
             style={{
@@ -18,7 +18,7 @@ const Cursor: React.FC<CursorProps> = ({ waiting, className, position }) => {
             }}
             className={
                 className +
-                ' border-2 my-2 border-white bg-white ' +
+                ' border-2 my-2 h-7 border-white bg-white ' +
                 (waiting ? 'animate-blink' : '')
             }
         ></span>
