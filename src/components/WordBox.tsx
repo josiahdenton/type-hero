@@ -85,7 +85,7 @@ const WordBox: React.FC<WordBoxProps> = ({ className }) => {
     }, [cursorPos, lines]);
 
     const loadContent = () => {
-        fetch('/thousand.json')
+        fetch('thousand.json')
             .then((resp) => resp.json())
             .then((words: { common: string[] }) => {
                 setWords(words.common);
