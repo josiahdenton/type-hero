@@ -26,7 +26,6 @@ export const useScore = () => {
     useEffect(() => {
         if (lines && scoresRef.current.length < lines.length) {
             const newLines = lines.slice(scoresRef.current.length);
-            console.log(lines);
             setScores((scores) => [
                 ...scores,
                 ...newLines.map((newLine) =>

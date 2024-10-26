@@ -68,7 +68,6 @@ const WordBox: React.FC<WordBoxProps> = ({ className }) => {
 
     useEffect(() => {
         scoresRef.current = scores;
-        console.log(scores);
     }, [scores]);
 
     useEffect(() => {
