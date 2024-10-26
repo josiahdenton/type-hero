@@ -9,7 +9,7 @@ function App() {
             <h1 className="text-3xl font-bold self-center text-slate-700">
                 Keyboard Type Hero!
             </h1>
-            <div className="flex flex-col justify-between self-center py-16">
+            <div className="flex flex-col justify-center gap-4 self-center py-16">
                 <WordBox
                     className="self-center text-center text-4xl cursor-none"
                     content="the quick brown fox jumped over the red fence on his way to the grocery store."
