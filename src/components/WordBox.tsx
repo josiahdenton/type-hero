@@ -16,6 +16,8 @@ enum GameState {
     ENDED = 2,
 }
 
+const PREVENT_DEFAULT = [' '];
+
 const totalCorrect = (scores: (boolean | undefined)[][]): number => {
     return scores.reduce((prev, curr) => {
         return (
@@ -138,7 +140,10 @@ const WordBox: React.FC<WordBoxProps> = ({ className }) => {
             });
         }
 
-        event.preventDefault();
+        // TODO: remove once I fix the sizing of the window
+        if (PREVENT_DEFAULT.includes(event.key)) {
+            event.preventDefault();
+        }
     };
 
     return (
