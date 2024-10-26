@@ -5,7 +5,7 @@ import WordBox from './components/WordBox';
 
 function App() {
     return (
-        <div className="flex flex-col p-8 gap-10 overflow-hidden">
+        <div className="flex flex-col px-8 pt-8 gap-10 overflow-hidden">
             <h1 className="text-3xl font-bold self-center text-slate-700">
                 Keyboard Type Hero!
             </h1>
