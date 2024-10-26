@@ -140,7 +140,7 @@ const WordBox: React.FC<WordBoxProps> = ({ className }) => {
     };
 
     return (
-        <div tabIndex={0} className={'max-w-4xl ' + className}>
+        <div tabIndex={0} className={className}>
             <Cursor
                 point={cursorLocation}
                 waiting={gameState !== GameState.STARTED}
