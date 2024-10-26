@@ -18,7 +18,7 @@ const Cursor: React.FC<CursorProps> = ({ waiting, className, point: position }) 
             }}
             className={
                 className +
-                ' border-2 my-2 h-7 border-white bg-white ' +
+                ' w-[0.15rem] my-1 h-9 border-white bg-white ' +
                 (waiting ? 'animate-blink' : '')
             }
         ></span>

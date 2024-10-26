@@ -11,7 +11,7 @@ export enum LetterState {
 }
 
 const Letter: React.FC<LetterProps> = ({ letter, state, id }) => {
-    let styling = 'font-bold px-[0.05rem] ';
+    let styling = 'font-bold px-[0.10rem] ';
     switch (state) {
         case LetterState.READY:
             styling += 'text-pink-500';

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Cursor, { Point } from './Cursor';
-import { CursorAction, CursorPosition, useSlide } from '../hooks/slide';
+import { Action, CursorPosition, useSlide } from '../hooks/slide';
 import Line from './Line';
 import { useScore } from '../hooks/scoring';
 
@@ -13,7 +13,6 @@ interface WordBoxProps {
 enum GameState {
     READY = 0,
     STARTED = 1,
-    ENDED = 2,
 }
 
 const PREVENT_DEFAULT = [' '];
@@ -49,22 +48,22 @@ const PLAY_TIME = 30;
 
 const WordBox: React.FC<WordBoxProps> = ({ className }) => {
     const [gameState, setGameState] = useState<GameState>();
-    const [cursorPos, lines, moveCursor, setWords] = useSlide();
+    const [cursorPos, lines, setUserAction, setWords] = useSlide();
     const cursorPosRef = useRef(cursorPos);
     const [cursorLocation, setCursorLocation] = useState<Point>({ x: 0, y: 0 });
-    const [scores, setLines, setKeyEvent] = useScore();
+    const [scores, setLines] = useScore(cursorPos);
     const scoresRef = useRef(scores);
     const [wpm, setWPM] = useState<number>(0);
-    //const [timeRemaining, setTimeRemaining] = useState<number>(PLAY_TIME);
+    const [timeRemaining, setTimeRemaining] = useState<number>(PLAY_TIME);
 
     useEffect(() => {
-        if (gameState === GameState.ENDED) {
+        if (timeRemaining === 0) {
             // run through scores and find the tally, it should be
             // (characters_typed_correctly / 30 sec * (60 sec / 1 min) / 5)
             const correct = totalCorrect(scores);
             setWPM(((correct / PLAY_TIME) * 60) / 5);
         }
-    }, [gameState]);
+    }, [timeRemaining]);
 
     useEffect(() => {
         scoresRef.current = scores;
@@ -79,7 +78,7 @@ const WordBox: React.FC<WordBoxProps> = ({ className }) => {
     }, [lines]);
 
     useEffect(() => {
-        let location = translateCursorToLocation(cursorPos);
+        let location = translateCursorToLocation(cursorPos.currentPosition);
         if (location) {
             setCursorLocation(location);
         }
@@ -105,8 +104,12 @@ const WordBox: React.FC<WordBoxProps> = ({ className }) => {
 
     useEffect(() => {
         if (gameState === GameState.STARTED) {
+            const interval = setInterval(() => {
+                setTimeRemaining((time) => time - 1);
+            }, 1 * SECOND);
+
             const timeout = setTimeout(() => {
-                setGameState(GameState.ENDED);
+                clearInterval(interval);
             }, 30 * SECOND);
             return () => {
                 clearTimeout(timeout);
@@ -114,28 +117,27 @@ const WordBox: React.FC<WordBoxProps> = ({ className }) => {
         }
     }, [gameState]);
 
-    // FIXME: I should have moveCursor listened to...
     const handleUserInput = (event: KeyboardEvent) => {
         setGameState(GameState.STARTED);
-        if (['Shift', 'Control', 'Meta'].includes(event.key)) {
+        if (['Shift', 'Control', 'Meta', 'Alt'].includes(event.key)) {
             return;
         }
 
         if (event.key === 'Backspace') {
             // this moves the cursor
-            moveCursor(
-                event.ctrlKey
-                    ? { action: CursorAction.SUPER_DELETE }
-                    : { action: CursorAction.DELETE }
-            );
-        } else {
-            // move cursor forward
-            moveCursor({ action: CursorAction.FORWARD });
-            setKeyEvent({
+            setUserAction({
+                action: event.ctrlKey ? Action.SUPER_DELETE : Action.DELETE,
                 timestamp: Date.now(),
                 character: event.key,
-                pos: cursorPosRef.current,
-                isDelete: false,
+                //pos: cursorPosRef.current,
+            });
+        } else {
+            // move cursor forward
+            setUserAction({
+                action: Action.ADD,
+                timestamp: Date.now(),
+                character: event.key,
+                //pos: cursorPosRef.current,
             });
         }
 
@@ -162,7 +164,14 @@ const WordBox: React.FC<WordBoxProps> = ({ className }) => {
             ))}
             <br />
             <br />
-            <div className="text-slate-700"> Total Score: {wpm}</div>
+            {timeRemaining > 0 ? (
+                <div className="text-slate-700">
+                    {' '}
+                    Time Remaining: {timeRemaining}
+                </div>
+            ) : (
+                <div className="text-slate-700"> Total Score: {wpm}</div>
+            )}
         </div>
     );
 };

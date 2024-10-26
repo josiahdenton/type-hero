@@ -1,28 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { CursorPosition } from './slide';
+import { Action, CursorUpdate } from './slide';
 
-type KeyEvent = {
-    timestamp: number;
-    character: string;
-    pos: CursorPosition;
-    isDelete: boolean;
-};
-
-// NOTE: =====================================================
+// NOTE:
 // track words completed for WPM
 // calulation follows from this explanation
 // https://www.typing.com/blog/what-is-words-per-minute/#:~:text=The%20Basics%20of%20WPM,Accurately%20Measuring%20Typing%20Ability
-// =====================================================
 
-export const useScore = () => {
-    const [keyEvent, setKeyEvent] = useState<KeyEvent>();
-    // undefined --> LetterState.READY, false --> LetterState.NO_MATCH, true --> LetterState.MATCHED
+export const useScore = (cursorUpdate?: CursorUpdate) => {
     const [lines, setLines] = useState<string[]>();
-    const [scores, setScores] = useState<(boolean | undefined)[][]>([]); // initial state of lines will be set to 3 ROWS
+    // undefined --> LetterState.READY, false --> LetterState.NO_MATCH, true --> LetterState.MATCHED
+    const [scores, setScores] = useState<(boolean | undefined)[][]>([]);
     const scoresRef = useRef(scores);
-    // useEffect off lines, everytime we append a line, we add a line
     const linesRef = useRef(lines);
 
+    // match scores Array length to lines.
     useEffect(() => {
         if (lines && scoresRef.current.length < lines.length) {
             const newLines = lines.slice(scoresRef.current.length);
@@ -36,25 +27,41 @@ export const useScore = () => {
     }, [lines]);
 
     useEffect(() => {
-        if (keyEvent?.isDelete) {
-            console.log('unsupported');
+        console.log(cursorUpdate);
+        if (!cursorUpdate || !cursorUpdate.positionOfAction) {
             return;
         }
+        const positionOfAction = cursorUpdate.positionOfAction;
+        const currentPosition = cursorUpdate.currentPosition; 
 
-        if (keyEvent && linesRef.current) {
-            const letter =
-                linesRef.current[keyEvent.pos.line][keyEvent.pos.letter];
+        if (cursorUpdate.action === Action.DELETE) {
             setScores((scores) =>
                 scores.map((line, linePos) => {
-                    if (linePos === keyEvent.pos.line) {
-                        line[keyEvent.pos.letter] =
-                            letter == keyEvent.character;
+                    if (linePos === currentPosition.line) {
+                        line[currentPosition.letter] = undefined;
+                    }
+                    return line;
+                })
+            );
+            return;
+        } else if (cursorUpdate.action === Action.SUPER_DELETE) {
+            console.log('unsupported');
+        } else if (cursorUpdate.action === Action.ADD && linesRef.current) {
+            const letter =
+                linesRef.current[positionOfAction.line][
+                    positionOfAction.letter
+                ];
+            setScores((scores) =>
+                scores.map((line, linePos) => {
+                    if (linePos === positionOfAction.line) {
+                        line[positionOfAction.letter] =
+                            letter == cursorUpdate.character;
                     }
                     return line;
                 })
             );
         }
-    }, [keyEvent]);
+    }, [cursorUpdate]);
 
     useEffect(() => {
         linesRef.current = lines;
@@ -62,7 +69,8 @@ export const useScore = () => {
 
     useEffect(() => {
         scoresRef.current = scores;
+        console.log(scores);
     }, [scores]);
 
-    return [scores, setLines, setKeyEvent] as const;
+    return [scores, setLines] as const;
 };

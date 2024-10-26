@@ -12,14 +12,21 @@ import { useEffect, useRef, useState } from 'react';
 const MAX_WORDS_PER_LINE = 7;
 const ROWS = 3;
 
-export enum CursorAction {
-    FORWARD,
-    DELETE,
-    SUPER_DELETE,
+export enum Action {
+    ADD = 'ADD',
+    DELETE = 'DELETE',
+    SUPER_DELETE = 'SUPER_DELETE',
 }
 
-export type CursorMovement = {
-    action: CursorAction;
+export type UserAction = {
+    action: Action;
+    timestamp: number;
+    character: string;
+};
+
+export type CursorUpdate = Partial<UserAction> & {
+    positionOfAction?: CursorPosition;
+    currentPosition: CursorPosition;
 };
 
 export type CursorPosition = {
@@ -41,16 +48,16 @@ const generateLine = (words: string[]): string => {
 
 // TODO: have this return [cursorPos, content, moveCursor, setWords]
 export const useSlide = () => {
-    // words list is used
-    const [cursorPos, setCursorPos] = useState<CursorPosition>({
-        letter: 0,
-        line: 0,
+    const [cursorUpdate, setCursorUpdate] = useState<CursorUpdate>({
+        currentPosition: { line: 0, letter: 0 },
     });
-    const cursorPosRef = useRef<CursorPosition>(cursorPos);
+    const cursorPosRef = useRef<CursorPosition>(cursorUpdate.currentPosition);
 
     const [words, setWords] = useState<string[]>([]);
-    const [cursorMovement, setCursorMovement] = useState<CursorMovement>();
+    const [userAction, setUserAction] = useState<UserAction>();
     const [lines, setLines] = useState<string[]>([]);
+
+    // TODO: make cursor a combo of userAction + cursorPos --> contentChanged?
 
     const wordsRef = useRef<string[]>(words);
     const linesRef = useRef<string[]>([]);
@@ -60,14 +67,7 @@ export const useSlide = () => {
     }, [lines]);
 
     useEffect(() => {
-        cursorPosRef.current = cursorPos;
-    }, [cursorPos]);
-
-    useEffect(() => {
         wordsRef.current = words;
-    }, [words]);
-
-    useEffect(() => {
         if (words.length > 0) {
             setLines(
                 Array.from({ length: ROWS }).map(() => {
@@ -78,51 +78,76 @@ export const useSlide = () => {
     }, [words]);
 
     useEffect(() => {
-        // I need to change my cursor position
-        // I need references to the lines though... in order to understand where I'm going
+        if (
+            cursorUpdate.currentPosition.line ==
+            linesRef.current.length - 1
+        ) {
+            setLines((lines) => [...lines, generateLine(words)]);
+        }
+    }, [cursorUpdate]);
+
+    useEffect(() => {
+        if (!userAction) {
+            return;
+        }
         const line = linesRef.current[cursorPosRef.current.line];
-        //console.log('current line: ', line, line?.length, cursorPosRef.current);
-        let movement = cursorMovement?.action;
-        switch (movement) {
-            case CursorAction.FORWARD:
+
+        switch (userAction.action) {
+            case Action.ADD:
                 // we should move to next line
                 if (cursorPosRef.current.letter + 1 >= line.length) {
-                    setCursorPos((prev) => ({
-                        line: prev.line + 1,
-                        letter: 0,
-                    }));
-                    // if we hit the last line, we should append another line
-                    if (
-                        cursorPosRef.current.line + 1 ==
-                        linesRef.current.length - 1
-                    ) {
-                        setLines((lines) => [...lines, generateLine(words)]);
-                    }
+                    setCursorUpdate((prev) => {
+                        const update = {
+                            ...userAction,
+                            positionOfAction: prev.currentPosition,
+                            currentPosition: {
+                                line: prev.currentPosition.line + 1,
+                                letter: 0,
+                            },
+                        };
+                        cursorPosRef.current = update.currentPosition;
+                        return update;
+                    });
                 } else {
                     // move to next letter
-                    setCursorPos((prev) => ({
-                        line: prev.line,
-                        letter: prev.letter + 1,
-                    }));
+                    setCursorUpdate((prev) => {
+                        const update = {
+                            ...userAction,
+                            positionOfAction: prev.currentPosition,
+                            currentPosition: {
+                                line: prev.currentPosition.line,
+                                letter: prev.currentPosition.letter + 1,
+                            },
+                        };
+                        cursorPosRef.current = update.currentPosition;
+                        return update;
+                    });
                 }
                 break;
-            case CursorAction.DELETE:
+            case Action.DELETE:
                 if (cursorPosRef.current.letter == 0) {
                     break;
                 }
-
-                setCursorPos((prev) => ({
-                    line: prev.line,
-                    letter: prev.letter - 1,
-                }));
+                setCursorUpdate((prev) => {
+                    const update = {
+                        ...userAction,
+                        positionOfAction: prev.currentPosition,
+                        currentPosition: {
+                            line: prev.currentPosition.line,
+                            letter: prev.currentPosition.letter - 1,
+                        },
+                    };
+                    cursorPosRef.current = update.currentPosition;
+                    return update;
+                });
                 break;
-            case CursorAction.SUPER_DELETE:
+            case Action.SUPER_DELETE:
                 // TODO: implement
                 // useful
                 // indexOf / lastIndexOf
                 break;
         }
-    }, [cursorMovement]);
+    }, [userAction]);
 
-    return [cursorPos, lines, setCursorMovement, setWords] as const;
+    return [cursorUpdate, lines, setUserAction, setWords] as const;
 };
