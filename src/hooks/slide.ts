@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react';
  * allows multi-word deleting.
  * */
 
-const MAX_WORDS_PER_LINE = 5;
+const MAX_WORDS_PER_LINE = 8;
 const ROWS = 3;
 
 export enum CursorAction {
