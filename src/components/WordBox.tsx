@@ -137,6 +137,8 @@ const WordBox: React.FC<WordBoxProps> = ({ className }) => {
                 isDelete: false,
             });
         }
+
+        event.preventDefault();
     };
 
     return (
