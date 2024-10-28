@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Cursor, { Point } from './Cursor';
-import { Action, CursorPosition, useSlide } from '../hooks/slide';
+import { Action, CursorPosition, useTypingGame } from '../hooks/game';
+import { shouldDeleteWord, useSettings } from '../hooks/settings';
 import Line from './Line';
-import { useScore } from '../hooks/scoring';
 
 interface WordBoxProps {
     content: string;
@@ -49,15 +49,15 @@ const PLAY_TIME = 30;
 
 const WordBox: React.FC<WordBoxProps> = ({ className, onGameStateChange }) => {
     const [gameState, setGameState] = useState<GameState>();
-    const [cursorPos, lines, setUserAction, setWords] = useSlide();
+    const [scores, cursorPos, lines, setUserAction, setWords] = useTypingGame();
     const cursorPosRef = useRef(cursorPos);
     const [cursorLocation, setCursorLocation] = useState<Point>({ x: 0, y: 0 });
-    const [scores, setLines] = useScore(cursorPos);
     const scoresRef = useRef(scores);
     const [wpm, setWPM] = useState<number>(0);
     const [timeRemaining, setTimeRemaining] = useState<number>(PLAY_TIME);
+    const [settings, setSettings] = useSettings();
 
-    const [keysTyped, setKeysTyped] = useState<number>(0);
+    const inputRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         if (timeRemaining === 0) {
@@ -90,10 +90,6 @@ const WordBox: React.FC<WordBoxProps> = ({ className, onGameStateChange }) => {
     }, [cursorPos]);
 
     useEffect(() => {
-        setLines(lines);
-    }, [lines]);
-
-    useEffect(() => {
         let location = translateCursorToLocation(cursorPos.currentPosition);
         if (location) {
             setCursorLocation(location);
@@ -112,9 +108,9 @@ const WordBox: React.FC<WordBoxProps> = ({ className, onGameStateChange }) => {
 
     useEffect(() => {
         loadContent();
-        window.addEventListener('keydown', handleUserInput);
+        window.addEventListener('keydown', onUserKeyDown);
         return () => {
-            window.removeEventListener('keydown', handleUserInput);
+            window.removeEventListener('keydown', onUserKeyDown);
         };
     }, []);
 
@@ -139,22 +135,16 @@ const WordBox: React.FC<WordBoxProps> = ({ className, onGameStateChange }) => {
         }
     }, [gameState]);
 
-    useEffect(() => {
-        console.log(keysTyped);
-    }, [keysTyped]);
-
-    const handleUserInput = (event: KeyboardEvent) => {
+    const onUserKeyDown = (event: KeyboardEvent) => {
         if (['Shift', 'Control', 'Meta', 'Alt'].includes(event.key)) {
             return;
         }
-
-        setKeysTyped((prev) => prev + 1);
         console.log(event);
 
         if (event.key === 'Backspace') {
             // this moves the cursor
             setUserAction({
-                action: event.ctrlKey ? Action.SUPER_DELETE : Action.DELETE,
+                action: shouldDeleteWord(event, settings) ? Action.SUPER_DELETE : Action.DELETE,
                 timestamp: Date.now(),
                 character: event.key,
                 //pos: cursorPosRef.current,
@@ -175,8 +165,19 @@ const WordBox: React.FC<WordBoxProps> = ({ className, onGameStateChange }) => {
         }
     };
 
+    const onUserClick = () => {
+        if (inputRef.current) {
+            inputRef.current.focus();
+        }
+    }
+
+    // TODO: plan this is what drives how many words to use
+    // - window.innerWidth
+    // - window.innerHeight
+    // also should add window.addEventListener('resize', ...)  
+
     return (
-        <div tabIndex={0} className={className}>
+        <div tabIndex={0} className={className} ref={inputRef} onClick={onUserClick}>
             <Cursor
                 point={cursorLocation}
                 waiting={gameState !== GameState.STARTED}

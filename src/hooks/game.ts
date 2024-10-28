@@ -12,6 +12,8 @@ import { useEffect, useRef, useState } from 'react';
 const MAX_WORDS_PER_LINE = 7;
 const ROWS = 3;
 
+type Scores = (boolean | undefined)[][];
+
 export enum Action {
     ADD = 'ADD',
     DELETE = 'DELETE',
@@ -47,7 +49,7 @@ const generateLine = (words: string[]): string => {
 };
 
 // TODO: have this return [cursorPos, content, moveCursor, setWords]
-export const useSlide = () => {
+export const useTypingGame = () => {
     const [cursorUpdate, setCursorUpdate] = useState<CursorUpdate>({
         currentPosition: { line: 0, letter: 0 },
     });
@@ -57,17 +59,28 @@ export const useSlide = () => {
     const [userAction, setUserAction] = useState<UserAction>();
     const [lines, setLines] = useState<string[]>([]);
 
-    // TODO: make cursor a combo of userAction + cursorPos --> contentChanged?
-
-    const wordsRef = useRef<string[]>(words);
     const linesRef = useRef<string[]>([]);
+
+    const [scores, setScores] = useState<(boolean | undefined)[][]>([]);
+    const scoresRef = useRef(scores);
+    // match scores Array length to lines.
+    useEffect(() => {
+        if (lines && scoresRef.current.length < lines.length) {
+            const newLines = lines.slice(scoresRef.current.length);
+            setScores((scores) => [
+                ...scores,
+                ...newLines.map((newLine) =>
+                    Array.from({ length: newLine.length }, () => undefined)
+                ),
+            ]);
+        }
+    }, [lines]);
 
     useEffect(() => {
         linesRef.current = lines;
     }, [lines]);
 
     useEffect(() => {
-        wordsRef.current = words;
         if (words.length > 0) {
             setLines(
                 Array.from({ length: ROWS }).map(() => {
@@ -78,10 +91,7 @@ export const useSlide = () => {
     }, [words]);
 
     useEffect(() => {
-        if (
-            cursorUpdate.currentPosition.line ==
-            linesRef.current.length - 1
-        ) {
+        if (cursorUpdate.currentPosition.line == linesRef.current.length - 1) {
             setLines((lines) => [...lines, generateLine(words)]);
         }
     }, [cursorUpdate]);
@@ -106,6 +116,8 @@ export const useSlide = () => {
                             },
                         };
                         cursorPosRef.current = update.currentPosition;
+                        onCursorUpdate(update, linesRef.current, setScores);
+
                         return update;
                     });
                 } else {
@@ -120,6 +132,8 @@ export const useSlide = () => {
                             },
                         };
                         cursorPosRef.current = update.currentPosition;
+                        onCursorUpdate(update, linesRef.current, setScores);
+
                         return update;
                     });
                 }
@@ -138,16 +152,103 @@ export const useSlide = () => {
                         },
                     };
                     cursorPosRef.current = update.currentPosition;
+                    onCursorUpdate(update, linesRef.current, setScores);
+
                     return update;
                 });
                 break;
             case Action.SUPER_DELETE:
-                // TODO: implement
-                // useful
-                // indexOf / lastIndexOf
+                setCursorUpdate((prev) => {
+                    const update = {
+                        ...userAction,
+                        positionOfAction: prev.currentPosition,
+                        currentPosition: moveToStartOfWord(
+                            prev.currentPosition,
+                            line
+                        ),
+                    };
+                    cursorPosRef.current = update.currentPosition;
+                    onCursorUpdate(update, linesRef.current, setScores);
+
+                    return update;
+                });
                 break;
         }
     }, [userAction]);
 
-    return [cursorUpdate, lines, setUserAction, setWords] as const;
+    return [scores, cursorUpdate, lines, setUserAction, setWords] as const;
+};
+
+const moveToStartOfWord = (
+    cursorPos: CursorPosition,
+    line: string
+): CursorPosition => {
+    cursorPos.letter;
+    if (cursorPos.letter === 0) {
+        return cursorPos;
+    }
+
+    let pos = cursorPos.letter - 1;
+    // this moves to the left until we hit whitespace
+    while (line[pos] !== ' ' && pos > 0) {
+        pos--;
+    }
+
+    // add 1 so we're sitting at the start of the word.
+    // special case, if it's the first word in a line we go to the start
+    // of the line.
+    return { line: cursorPos.line, letter: pos > 0 ? pos + 1 : 0 };
+};
+
+const onCursorUpdate = (
+    cursorUpdate: CursorUpdate,
+    lines: string[],
+    setScores: React.Dispatch<React.SetStateAction<Scores>>
+) => {
+    if (!cursorUpdate || !cursorUpdate.positionOfAction) {
+        return;
+    }
+    const positionOfAction = cursorUpdate.positionOfAction;
+    const currentPosition = cursorUpdate.currentPosition;
+
+    if (cursorUpdate.action === Action.DELETE) {
+        setScores((scores) =>
+            scores.map((line, linePos) => {
+                if (linePos === currentPosition.line) {
+                    line[currentPosition.letter] = undefined;
+                }
+                return line;
+            })
+        );
+        return;
+    } else if (cursorUpdate.action === Action.SUPER_DELETE) {
+        setScores((scores) =>
+            scores.map((line, linePos) => {
+                if (
+                    linePos === currentPosition.line &&
+                    cursorUpdate.positionOfAction
+                ) {
+                    for (
+                        let i = cursorUpdate.currentPosition.letter;
+                        i < cursorUpdate.positionOfAction.letter;
+                        i++
+                    ) {
+                        line[i] = undefined;
+                    }
+                }
+                return line;
+            })
+        );
+    } else if (cursorUpdate.action === Action.ADD) {
+        const letter = lines[positionOfAction.line][positionOfAction.letter];
+        setScores((scores) =>
+            scores.map((line, linePos) => {
+                if (linePos === positionOfAction.line) {
+                    line[positionOfAction.letter] =
+                        letter == cursorUpdate.character;
+                }
+                return line;
+            })
+        );
+    }
 };
