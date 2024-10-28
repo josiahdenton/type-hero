@@ -6,13 +6,14 @@ import { useScore } from '../hooks/scoring';
 
 interface WordBoxProps {
     content: string;
-    active: boolean;
+    onGameStateChange: (gameState: GameState) => void;
     className?: string;
 }
 
-enum GameState {
+export enum GameState {
     READY = 0,
     STARTED = 1,
+    ENDED = 2,
 }
 
 const PREVENT_DEFAULT = [' '];
@@ -46,7 +47,7 @@ const translateCursorToLocation = (
 const SECOND = 1000;
 const PLAY_TIME = 30;
 
-const WordBox: React.FC<WordBoxProps> = ({ className }) => {
+const WordBox: React.FC<WordBoxProps> = ({ className, onGameStateChange }) => {
     const [gameState, setGameState] = useState<GameState>();
     const [cursorPos, lines, setUserAction, setWords] = useSlide();
     const cursorPosRef = useRef(cursorPos);
@@ -55,6 +56,8 @@ const WordBox: React.FC<WordBoxProps> = ({ className }) => {
     const scoresRef = useRef(scores);
     const [wpm, setWPM] = useState<number>(0);
     const [timeRemaining, setTimeRemaining] = useState<number>(PLAY_TIME);
+
+    const [keysTyped, setKeysTyped] = useState<number>(0);
 
     useEffect(() => {
         if (timeRemaining === 0) {
@@ -71,6 +74,19 @@ const WordBox: React.FC<WordBoxProps> = ({ className }) => {
 
     useEffect(() => {
         cursorPosRef.current = cursorPos;
+        if (
+            cursorPos.action === Action.ADD &&
+            cursorPos.currentPosition.line === 0 &&
+            cursorPos.currentPosition.letter === 1
+        ) {
+            setGameState(GameState.STARTED);
+        } else if (
+            cursorPos.action === Action.DELETE &&
+            cursorPos.currentPosition.line === 0 &&
+            cursorPos.currentPosition.letter === 0
+        ) {
+            setGameState(GameState.READY);
+        }
     }, [cursorPos]);
 
     useEffect(() => {
@@ -109,19 +125,31 @@ const WordBox: React.FC<WordBoxProps> = ({ className }) => {
             }, 1 * SECOND);
 
             const timeout = setTimeout(() => {
+                setGameState(GameState.ENDED);
                 clearInterval(interval);
             }, 30 * SECOND);
+            onGameStateChange(gameState);
             return () => {
                 clearTimeout(timeout);
             };
         }
+
+        if (gameState === GameState.ENDED) {
+            onGameStateChange(gameState);
+        }
     }, [gameState]);
 
+    useEffect(() => {
+        console.log(keysTyped);
+    }, [keysTyped]);
+
     const handleUserInput = (event: KeyboardEvent) => {
-        setGameState(GameState.STARTED);
         if (['Shift', 'Control', 'Meta', 'Alt'].includes(event.key)) {
             return;
         }
+
+        setKeysTyped((prev) => prev + 1);
+        console.log(event);
 
         if (event.key === 'Backspace') {
             // this moves the cursor
@@ -165,12 +193,13 @@ const WordBox: React.FC<WordBoxProps> = ({ className }) => {
             <br />
             <br />
             {timeRemaining > 0 ? (
-                <div className="text-slate-700">
-                    {' '}
-                    Time Remaining: {timeRemaining}
-                </div>
+                <div className="text-slate-500">{timeRemaining}</div>
             ) : (
-                <div className="text-slate-700"> Total Score: {wpm}</div>
+                <div className="flex flex-col w-full">
+                    <div className="text-slate-500 border border-gray-700 rounded-lg p-4 shadow self-center">
+                        {wpm} WPM
+                    </div>
+                </div>
             )}
         </div>
     );

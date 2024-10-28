@@ -27,10 +27,10 @@ export const useScore = (cursorUpdate?: CursorUpdate) => {
     }, [lines]);
 
     useEffect(() => {
-        console.log(cursorUpdate);
         if (!cursorUpdate || !cursorUpdate.positionOfAction) {
             return;
         }
+        console.log(cursorUpdate);
         const positionOfAction = cursorUpdate.positionOfAction;
         const currentPosition = cursorUpdate.currentPosition; 
 
@@ -69,7 +69,6 @@ export const useScore = (cursorUpdate?: CursorUpdate) => {
 
     useEffect(() => {
         scoresRef.current = scores;
-        console.log(scores);
     }, [scores]);
 
     return [scores, setLines] as const;
