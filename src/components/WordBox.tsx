@@ -55,7 +55,7 @@ const WordBox: React.FC<WordBoxProps> = ({ className, onGameStateChange }) => {
     const scoresRef = useRef(scores);
     const [wpm, setWPM] = useState<number>(0);
     const [timeRemaining, setTimeRemaining] = useState<number>(PLAY_TIME);
-    const [settings, setSettings] = useSettings();
+    const [settings, _] = useSettings();
 
     const inputRef = useRef<HTMLDivElement>(null)
 
