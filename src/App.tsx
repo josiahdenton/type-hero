@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import Keyboard, { Layout } from './components/Keyboard';
 import WordBox, { GameState } from './components/WordBox';
+import { useSettings } from './hooks/settings';
 
 function App() {
     const [running, setRunning] = useState<boolean>(false);
+    const [settings, _] = useSettings();
 
     return (
         <div
@@ -19,6 +21,7 @@ function App() {
                 <WordBox
                     className="self-center text-center text-4xl"
                     content="the quick brown fox jumped over the red fence on his way to the grocery store."
+                    settings={settings}
                     onGameStateChange={(ev) => {
                         if (ev === GameState.STARTED) {
                             console.log('STARTED');
@@ -33,9 +36,14 @@ function App() {
                 <br />
                 <br />
 
-                <div className="flex flex-col w-full">
-                    <Keyboard className="self-center" layout={Layout.QWERTY} />
-                </div>
+                {settings.showKeyboard && (
+                    <div className="flex flex-col w-full">
+                        <Keyboard
+                            className="self-center"
+                            layout={Layout.QWERTY}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );

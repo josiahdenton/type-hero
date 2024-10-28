@@ -2,6 +2,7 @@
 // we would useRef<Slide>();
 
 import { useEffect, useRef, useState } from 'react';
+import { UserSettings } from './settings';
 
 /**
  * WordEditor treats words like simple text.
@@ -9,7 +10,6 @@ import { useEffect, useRef, useState } from 'react';
  * allows multi-word deleting.
  * */
 
-const MAX_WORDS_PER_LINE = 7;
 const ROWS = 3;
 
 type Scores = (boolean | undefined)[][];
@@ -36,20 +36,21 @@ export type CursorPosition = {
     line: number;
 };
 
-const generateLine = (words: string[]): string => {
+const generateLine = (words: string[], maxLetters: number): string => {
     let line = '';
-    // FIXME: make this instead generate words that fit within a letter range
-    for (let i = 0; i < MAX_WORDS_PER_LINE; i++) {
-        line += words[Math.floor(Math.random() * words.length)];
-        if (i < MAX_WORDS_PER_LINE - 1) {
-            line += ' ';
+    while (true) {
+        // idk if we should make this better... probably...
+        const word = words[Math.floor(Math.random() * words.length)];
+        if ((line + word).length >= maxLetters) {
+            break;
         }
+        line += word + ' ';
     }
-    return line + ' ';
+    return line;
 };
 
 // TODO: have this return [cursorPos, content, moveCursor, setWords]
-export const useTypingGame = () => {
+export const useTypingGame = (settings: UserSettings) => {
     const [cursorUpdate, setCursorUpdate] = useState<CursorUpdate>({
         currentPosition: { line: 0, letter: 0 },
     });
@@ -84,7 +85,7 @@ export const useTypingGame = () => {
         if (words.length > 0) {
             setLines(
                 Array.from({ length: ROWS }).map(() => {
-                    return generateLine(words);
+                    return generateLine(words, settings.maxLetters);
                 })
             );
         }
@@ -92,7 +93,10 @@ export const useTypingGame = () => {
 
     useEffect(() => {
         if (cursorUpdate.currentPosition.line == linesRef.current.length - 1) {
-            setLines((lines) => [...lines, generateLine(words)]);
+            setLines((lines) => [
+                ...lines,
+                generateLine(words, settings.maxLetters),
+            ]);
         }
     }, [cursorUpdate]);
 

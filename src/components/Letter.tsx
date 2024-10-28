@@ -12,6 +12,8 @@ export enum LetterState {
 
 const Letter: React.FC<LetterProps> = ({ letter, state, id }) => {
     let styling = 'font-bold px-[0.10rem] ';
+    let content = letter;
+
     switch (state) {
         case LetterState.READY:
             styling += 'text-pink-500';
@@ -20,13 +22,16 @@ const Letter: React.FC<LetterProps> = ({ letter, state, id }) => {
             styling += 'text-gray-700';
             break;
         case LetterState.NO_MATCH:
-            styling += 'text-rose-800';
+            if (letter === ' ') {
+                content = '·';
+            }
+                styling += 'text-rose-800';
             break;
     }
 
     return (
         <span id={id} className={styling}>
-            {letter}
+            {content}
         </span>
     );
 };

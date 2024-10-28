@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import Cursor, { Point } from './Cursor';
 import { Action, CursorPosition, useTypingGame } from '../hooks/game';
-import { shouldDeleteWord, useSettings } from '../hooks/settings';
+import { shouldDeleteWord, UserSettings } from '../hooks/settings';
 import Line from './Line';
 
 interface WordBoxProps {
     content: string;
     onGameStateChange: (gameState: GameState) => void;
     className?: string;
+    settings: UserSettings;
 }
 
 export enum GameState {
@@ -47,17 +48,23 @@ const translateCursorToLocation = (
 const SECOND = 1000;
 const PLAY_TIME = 30;
 
-const WordBox: React.FC<WordBoxProps> = ({ className, onGameStateChange }) => {
+const WordBox: React.FC<WordBoxProps> = ({
+    className,
+    onGameStateChange,
+    settings,
+}) => {
     const [gameState, setGameState] = useState<GameState>();
-    const [scores, cursorPos, lines, setUserAction, setWords] = useTypingGame();
+    const [scores, cursorPos, lines, setUserAction, setWords] =
+        useTypingGame(settings);
+    const scoresRef = useRef(scores);
+
     const cursorPosRef = useRef(cursorPos);
     const [cursorLocation, setCursorLocation] = useState<Point>({ x: 0, y: 0 });
-    const scoresRef = useRef(scores);
+
     const [wpm, setWPM] = useState<number>(0);
     const [timeRemaining, setTimeRemaining] = useState<number>(PLAY_TIME);
-    const [settings, _] = useSettings();
 
-    const inputRef = useRef<HTMLDivElement>(null)
+    const inputRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (timeRemaining === 0) {
@@ -144,7 +151,9 @@ const WordBox: React.FC<WordBoxProps> = ({ className, onGameStateChange }) => {
         if (event.key === 'Backspace') {
             // this moves the cursor
             setUserAction({
-                action: shouldDeleteWord(event, settings) ? Action.SUPER_DELETE : Action.DELETE,
+                action: shouldDeleteWord(event, settings)
+                    ? Action.SUPER_DELETE
+                    : Action.DELETE,
                 timestamp: Date.now(),
                 character: event.key,
                 //pos: cursorPosRef.current,
@@ -169,15 +178,20 @@ const WordBox: React.FC<WordBoxProps> = ({ className, onGameStateChange }) => {
         if (inputRef.current) {
             inputRef.current.focus();
         }
-    }
+    };
 
     // TODO: plan this is what drives how many words to use
     // - window.innerWidth
     // - window.innerHeight
-    // also should add window.addEventListener('resize', ...)  
+    // also should add window.addEventListener('resize', ...)
 
     return (
-        <div tabIndex={0} className={className} ref={inputRef} onClick={onUserClick}>
+        <div
+            tabIndex={0}
+            className={className}
+            ref={inputRef}
+            onClick={onUserClick}
+        >
             <Cursor
                 point={cursorLocation}
                 waiting={gameState !== GameState.STARTED}
