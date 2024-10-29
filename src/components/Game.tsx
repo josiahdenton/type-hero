@@ -76,7 +76,9 @@ const Game: React.FC<WordBoxProps> = ({ className, settings }) => {
             const correct = scoreTotal(scoresRef.current, true);
             const incorrect = scoreTotal(scoresRef.current, false);
             setWPM(((correct / PLAY_TIME) * 60) / 5);
-            setAccuracy((correct / (incorrect + correct) * 100).toFixed(2) + '%');
+            setAccuracy(
+                ((correct / (incorrect + correct)) * 100).toFixed(2) + '%'
+            );
         }
     }, [timeRemaining]);
 
@@ -138,6 +140,7 @@ const Game: React.FC<WordBoxProps> = ({ className, settings }) => {
 
             const timeout = setTimeout(() => {
                 setGameState(GameState.ENDED);
+                setTimeRemaining(0);
                 clearInterval(interval);
             }, 30 * SECOND);
             return () => {
@@ -214,7 +217,11 @@ const Game: React.FC<WordBoxProps> = ({ className, settings }) => {
                         <div className="text-slate-500">{timeRemaining}</div>
                     </>
                 ) : (
-                    <Result accuracy={accuracy} wpm={wpm} onRestart={() => loadContent()} />
+                    <Result
+                        accuracy={accuracy}
+                        wpm={wpm}
+                        onRestart={() => loadContent()}
+                    />
                 )}
             </div>
         </>
