@@ -17,7 +17,7 @@ export const getMaxLetters = () => {
 
     // py-2 padding
     // everything seemed off by 5...?
-    return Math.floor(width / (rootFontSize * 2.25)) + 5;
+    return Math.floor(width / (rootFontSize * 2.25)) + 7;
 };
 
 export const shouldShowKeyboard = () => {
