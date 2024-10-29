@@ -3,10 +3,10 @@ import Cursor, { Point } from './Cursor';
 import { Action, CursorPosition, useTypingGame } from '../hooks/game';
 import { shouldDeleteWord, UserSettings } from '../hooks/settings';
 import Line from './Line';
+import Result from './Result';
 
 interface WordBoxProps {
     content: string;
-    onGameStateChange: (gameState: GameState) => void;
     className?: string;
     settings: UserSettings;
 }
@@ -48,11 +48,7 @@ const translateCursorToLocation = (
 const SECOND = 1000;
 const PLAY_TIME = 30;
 
-const WordBox: React.FC<WordBoxProps> = ({
-    className,
-    onGameStateChange,
-    settings,
-}) => {
+const Game: React.FC<WordBoxProps> = ({ className, settings }) => {
     const [gameState, setGameState] = useState<GameState>();
     const [scores, cursorPos, lines, setUserAction, setWords] =
         useTypingGame(settings);
@@ -64,7 +60,7 @@ const WordBox: React.FC<WordBoxProps> = ({
     const [wpm, setWPM] = useState<number>(0);
     const [timeRemaining, setTimeRemaining] = useState<number>(PLAY_TIME);
 
-    const inputRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (timeRemaining === 0) {
@@ -92,6 +88,7 @@ const WordBox: React.FC<WordBoxProps> = ({
             cursorPos.currentPosition.line === 0 &&
             cursorPos.currentPosition.letter === 0
         ) {
+            setTimeRemaining(PLAY_TIME);
             setGameState(GameState.READY);
         }
     }, [cursorPos]);
@@ -107,7 +104,7 @@ const WordBox: React.FC<WordBoxProps> = ({
         fetch('thousand.json')
             .then((resp) => resp.json())
             .then((words: { common: string[] }) => {
-                setWords(words.common);
+                setWords([...words.common]);
                 setGameState(GameState.READY);
             })
             .catch((err) => console.error(err));
@@ -122,7 +119,10 @@ const WordBox: React.FC<WordBoxProps> = ({
     }, []);
 
     useEffect(() => {
-        if (gameState === GameState.STARTED) {
+        if (gameState === GameState.READY) {
+            setTimeRemaining(30);
+            setWPM(0);
+        } else if (gameState === GameState.STARTED) {
             const interval = setInterval(() => {
                 setTimeRemaining((time) => time - 1);
             }, 1 * SECOND);
@@ -131,14 +131,9 @@ const WordBox: React.FC<WordBoxProps> = ({
                 setGameState(GameState.ENDED);
                 clearInterval(interval);
             }, 30 * SECOND);
-            onGameStateChange(gameState);
             return () => {
                 clearTimeout(timeout);
             };
-        }
-
-        if (gameState === GameState.ENDED) {
-            onGameStateChange(gameState);
         }
     }, [gameState]);
 
@@ -180,44 +175,41 @@ const WordBox: React.FC<WordBoxProps> = ({
         }
     };
 
-    // TODO: plan this is what drives how many words to use
-    // - window.innerWidth
-    // - window.innerHeight
-    // also should add window.addEventListener('resize', ...)
-
     return (
-        <div
-            tabIndex={0}
-            className={className}
-            ref={inputRef}
-            onClick={onUserClick}
-        >
-            <Cursor
-                point={cursorLocation}
-                waiting={gameState !== GameState.STARTED}
-                className={'h-7 absolute transition-left ease-linear'}
+        <>
+            <input
+                ref={inputRef}
+                type="text"
+                className="opacity-0 absolute pointer-events-none"
             />
-            {lines.slice(-3).map((line, i) => (
-                <Line
-                    key={i}
-                    line={line}
-                    linePos={i + lines.length - 3}
-                    lineScore={scores[i + lines.length - 3]}
-                ></Line>
-            ))}
-            <br />
-            <br />
-            {timeRemaining > 0 ? (
-                <div className="text-slate-500">{timeRemaining}</div>
-            ) : (
-                <div className="flex flex-col w-full">
-                    <div className="text-slate-500 border border-gray-700 rounded-lg p-4 shadow self-center">
-                        {wpm} WPM
-                    </div>
-                </div>
-            )}
-        </div>
+            <div tabIndex={0} className={className} onClick={onUserClick}>
+                {timeRemaining > 0 ? (
+                    <>
+                        <Cursor
+                            point={cursorLocation}
+                            waiting={gameState !== GameState.STARTED}
+                            className={
+                                'h-7 absolute transition-left ease-linear'
+                            }
+                        />
+                        {lines.slice(-3).map((line, i) => (
+                            <Line
+                                key={i}
+                                line={line}
+                                linePos={i + lines.length - 3}
+                                lineScore={scores[i + lines.length - 3]}
+                            ></Line>
+                        ))}
+                        <br />
+                        <br />
+                        <div className="text-slate-500">{timeRemaining}</div>
+                    </>
+                ) : (
+                    <Result wpm={wpm} onRestart={() => loadContent()} />
+                )}
+            </div>
+        </>
     );
 };
 
-export default WordBox;
+export default Game;

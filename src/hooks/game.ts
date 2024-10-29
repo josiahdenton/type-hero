@@ -11,6 +11,9 @@ import { UserSettings } from './settings';
  * */
 
 const ROWS = 3;
+const STARTING_POSITION: CursorUpdate = {
+    currentPosition: { line: 0, letter: 0 },
+};
 
 type Scores = (boolean | undefined)[][];
 
@@ -51,9 +54,8 @@ const generateLine = (words: string[], maxLetters: number): string => {
 
 // TODO: have this return [cursorPos, content, moveCursor, setWords]
 export const useTypingGame = (settings: UserSettings) => {
-    const [cursorUpdate, setCursorUpdate] = useState<CursorUpdate>({
-        currentPosition: { line: 0, letter: 0 },
-    });
+    const [cursorUpdate, setCursorUpdate] =
+        useState<CursorUpdate>(STARTING_POSITION);
     const cursorPosRef = useRef<CursorPosition>(cursorUpdate.currentPosition);
 
     const [words, setWords] = useState<string[]>([]);
@@ -81,7 +83,12 @@ export const useTypingGame = (settings: UserSettings) => {
         linesRef.current = lines;
     }, [lines]);
 
+    // if we get new words, restart the whole game
     useEffect(() => {
+        setLines([]);
+        setScores([]);
+        setCursorUpdate(STARTING_POSITION);
+        cursorPosRef.current = STARTING_POSITION.currentPosition;
         if (words.length > 0) {
             setLines(
                 Array.from({ length: ROWS }).map(() => {
