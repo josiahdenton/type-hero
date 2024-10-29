@@ -19,11 +19,17 @@ export enum GameState {
 
 const PREVENT_DEFAULT = [' '];
 
-const totalCorrect = (scores: (boolean | undefined)[][]): number => {
+const scoreTotal = (
+    scores: (boolean | undefined)[][],
+    forCorrect: boolean
+): number => {
     return scores.reduce((prev, curr) => {
         return (
             prev +
-            curr.reduce((prev, curr) => (curr === true ? prev + 1 : prev), 0)
+            curr.reduce(
+                (prev, curr) => (curr === forCorrect ? prev + 1 : prev),
+                0
+            )
         );
     }, 0);
 };
@@ -58,6 +64,7 @@ const Game: React.FC<WordBoxProps> = ({ className, settings }) => {
     const [cursorLocation, setCursorLocation] = useState<Point>({ x: 0, y: 0 });
 
     const [wpm, setWPM] = useState<number>(0);
+    const [accuracy, setAccuracy] = useState<string>('?');
     const [timeRemaining, setTimeRemaining] = useState<number>(PLAY_TIME);
 
     const inputRef = useRef<HTMLInputElement>(null);
@@ -66,8 +73,10 @@ const Game: React.FC<WordBoxProps> = ({ className, settings }) => {
         if (timeRemaining === 0) {
             // run through scores and find the tally, it should be
             // (characters_typed_correctly / 30 sec * (60 sec / 1 min) / 5)
-            const correct = totalCorrect(scores);
+            const correct = scoreTotal(scoresRef.current, true);
+            const incorrect = scoreTotal(scoresRef.current, false);
             setWPM(((correct / PLAY_TIME) * 60) / 5);
+            setAccuracy((correct / (incorrect + correct) * 100).toFixed(2) + '%');
         }
     }, [timeRemaining]);
 
@@ -205,7 +214,7 @@ const Game: React.FC<WordBoxProps> = ({ className, settings }) => {
                         <div className="text-slate-500">{timeRemaining}</div>
                     </>
                 ) : (
-                    <Result wpm={wpm} onRestart={() => loadContent()} />
+                    <Result accuracy={accuracy} wpm={wpm} onRestart={() => loadContent()} />
                 )}
             </div>
         </>
