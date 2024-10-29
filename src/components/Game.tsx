@@ -140,8 +140,8 @@ const Game: React.FC<WordBoxProps> = ({ className, settings }) => {
 
             const timeout = setTimeout(() => {
                 setGameState(GameState.ENDED);
-                setTimeRemaining(0);
                 clearInterval(interval);
+                setTimeRemaining(0);
             }, 30 * SECOND);
             return () => {
                 clearTimeout(timeout);
