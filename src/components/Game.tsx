@@ -19,6 +19,14 @@ export enum GameState {
 
 const PREVENT_DEFAULT = [' '];
 
+const GAME_WINDOW = 3;
+
+const gameCursorWindow = (cursorLinePos: number): [number, number] => {
+    return cursorLinePos - 1 > 0
+        ? [cursorLinePos - 1, cursorLinePos - 1 + GAME_WINDOW]
+        : [0, GAME_WINDOW];
+};
+
 const scoreTotal = (
     scores: (boolean | undefined)[][],
     forCorrect: boolean
@@ -204,14 +212,21 @@ const Game: React.FC<WordBoxProps> = ({ className, settings }) => {
                                 'h-7 absolute transition-left ease-linear'
                             }
                         />
-                        {lines.slice(-3).map((line, i) => (
-                            <Line
-                                key={i}
-                                line={line}
-                                linePos={i + lines.length - 3}
-                                lineScore={scores[i + lines.length - 3]}
-                            ></Line>
-                        ))}
+                        {lines
+                            .map((line, i) => [line, i] as const)
+                            .slice(
+                                ...gameCursorWindow(
+                                    cursorPos.currentPosition.line
+                                )
+                            )
+                            .map(([line, i]) => (
+                                <Line
+                                    key={i}
+                                    line={line}
+                                    linePos={i}
+                                    lineScore={scores[i]}
+                                ></Line>
+                            ))}
                         <br />
                         <br />
                         <div className="text-slate-500">{timeRemaining}</div>

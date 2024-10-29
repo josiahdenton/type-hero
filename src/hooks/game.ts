@@ -10,7 +10,7 @@ import { UserSettings } from './settings';
  * allows multi-word deleting.
  * */
 
-const ROWS = 3;
+const ROWS = 30;
 const STARTING_POSITION: CursorUpdate = {
     currentPosition: { line: 0, letter: 0 },
 };
@@ -99,15 +99,6 @@ export const useTypingGame = (settings: UserSettings) => {
     }, [words]);
 
     useEffect(() => {
-        if (cursorUpdate.currentPosition.line == linesRef.current.length - 1) {
-            setLines((lines) => [
-                ...lines,
-                generateLine(words, settings.maxLetters),
-            ]);
-        }
-    }, [cursorUpdate]);
-
-    useEffect(() => {
         if (!userAction) {
             return;
         }
@@ -127,7 +118,20 @@ export const useTypingGame = (settings: UserSettings) => {
                             },
                         };
                         cursorPosRef.current = update.currentPosition;
+                        // BUG: linesRef does not get updated often enough, so we need
+                        // to generate more lines of content in advance and stay N lines
+                        // ahead of the user.
                         onCursorUpdate(update, linesRef.current, setScores);
+
+                        if (
+                            update.currentPosition.line ==
+                            linesRef.current.length - 1
+                        ) {
+                            setLines((lines) => [
+                                ...lines,
+                                generateLine(words, settings.maxLetters),
+                            ]);
+                        }
 
                         return update;
                     });
@@ -252,6 +256,8 @@ const onCursorUpdate = (
         );
     } else if (cursorUpdate.action === Action.ADD) {
         const letter = lines[positionOfAction.line][positionOfAction.letter];
+        // BUG:                                     ^^^^^^ -- err: reading index 0 of undefined
+        // typing too fast, linesRef is out of date / too far behind
         setScores((scores) =>
             scores.map((line, linePos) => {
                 if (linePos === positionOfAction.line) {
